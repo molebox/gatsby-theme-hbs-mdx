@@ -5,6 +5,10 @@
   "main": "index.js",
   "author": "Hungry Bear Studio <roar@hungrybearstudio.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/molebox/gatsby-theme-hbs-mdx.git"
+  },
   "devDependencies": {
     "gatsby": "^2.7.1",
     "react": "^16.8.6",
