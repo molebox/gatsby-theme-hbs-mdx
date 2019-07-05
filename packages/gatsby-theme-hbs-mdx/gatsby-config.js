@@ -1,8 +1,9 @@
 const pkg = require('./package.json');
 
 module.exports = {
-    __experimentalThemes: ['gatsby-theme-hbs-mdx-core'],
+    // __experimentalThemes: ['gatsby-theme-hbs-mdx-core'],
     plugins: [
+        'gatsby-theme-hbs-mdx-core',
           {
             resolve: 'gatsby-plugin-page-creator',
             options: {
