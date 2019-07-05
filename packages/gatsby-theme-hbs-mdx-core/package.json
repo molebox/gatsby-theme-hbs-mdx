@@ -1,6 +1,6 @@
 {
   "name": "gatsby-theme-hbs-mdx-core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A core theme for mdx setup",
   "main": "index.js",
   "author": "Hungry Bear Studio <roar@hungrybearstudio.com>",
