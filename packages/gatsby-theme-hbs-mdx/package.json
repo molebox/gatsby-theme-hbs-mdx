@@ -1,6 +1,6 @@
 {
   "name": "gatsby-theme-hbs-mdx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An mdx theme that sets up basic folder structure and pages",
   "main": "index.js",
   "author": "Hungry Bear Studio <roar@hungrybearstudio.com>",
