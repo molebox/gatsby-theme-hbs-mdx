@@ -1,6 +1,6 @@
 {
   "name": "gatsby-theme-hbs-mdx",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "An mdx theme that sets up basic folder structure and pages",
   "main": "index.js",
   "author": "Hungry Bear Studio <roar@hungrybearstudio.com>",
@@ -10,12 +10,12 @@
     "url": "https://github.com/molebox/gatsby-theme-hbs-mdx.git"
   },
   "devDependencies": {
-    "gatsby": "^2.13.1",
+    "gatsby": "^2.15.20",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   },
   "peerDependencies": {
-    "gatsby": "^2.13.1",
+    "gatsby": "^2.15.20",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   },
