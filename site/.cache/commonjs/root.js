@@ -45,7 +45,21 @@ if (window.__webpack_hot_middleware_reporter__ !== undefined) {
   });
 }
 
-(0, _navigation.init)();
+(0, _navigation.init)(); // In gatsby v2 if Router is used in page using matchPaths
+// paths need to contain full path.
+// For example:
+//   - page have `/app/*` matchPath
+//   - inside template user needs to use `/app/xyz` as path
+// Resetting `basepath`/`baseuri` keeps current behaviour
+// to not introduce breaking change.
+// Remove this in v3
+
+const RouteHandler = props => _react.default.createElement(_router.BaseContext.Provider, {
+  value: {
+    baseuri: `/`,
+    basepath: `/`
+  }
+}, _react.default.createElement(_jsonStore.default, props));
 
 class LocationHandler extends _react.default.Component {
   render() {
@@ -65,8 +79,8 @@ class LocationHandler extends _react.default.Component {
         basepath: __BASE_PATH__,
         location: location,
         id: "gatsby-focus-wrapper"
-      }, _react.default.createElement(_jsonStore.default, (0, _extends2.default)({
-        path: locationAndPageResources.pageResources.page.matchPath || locationAndPageResources.pageResources.page.path
+      }, _react.default.createElement(RouteHandler, (0, _extends2.default)({
+        path: encodeURI(locationAndPageResources.pageResources.page.matchPath || locationAndPageResources.pageResources.page.path)
       }, this.props, locationAndPageResources))))));
     }
 
@@ -88,7 +102,7 @@ class LocationHandler extends _react.default.Component {
       basepath: __BASE_PATH__,
       location: location,
       id: "gatsby-focus-wrapper"
-    }, _react.default.createElement(_jsonStore.default, {
+    }, _react.default.createElement(RouteHandler, {
       path: location.pathname,
       location: location,
       pageResources: dev404PageResources,

@@ -38,19 +38,33 @@ const loader = new _loader.ProdLoader(_asyncRequires.default, _matchPaths.defaul
 loader.setApiRunner(_apiRunnerBrowser.apiRunner);
 window.asyncRequires = _asyncRequires.default;
 window.___emitter = _emitter.default;
-window.___loader = loader;
-window.___webpackCompilationHash = window.webpackCompilationHash;
+window.___loader = _loader.publicLoader;
 (0, _navigation.init)();
 (0, _apiRunnerBrowser.apiRunnerAsync)(`onClientEntry`).then(() => {
   // Let plugins register a service worker. The plugin just needs
   // to return true.
   if ((0, _apiRunnerBrowser.apiRunner)(`registerServiceWorker`).length > 0) {
     require(`./register-service-worker`);
-  }
+  } // In gatsby v2 if Router is used in page using matchPaths
+  // paths need to contain full path.
+  // For example:
+  //   - page have `/app/*` matchPath
+  //   - inside template user needs to use `/app/xyz` as path
+  // Resetting `basepath`/`baseuri` keeps current behaviour
+  // to not introduce breaking change.
+  // Remove this in v3
+
+
+  const RouteHandler = props => _react.default.createElement(_router.BaseContext.Provider, {
+    value: {
+      baseuri: `/`,
+      basepath: `/`
+    }
+  }, _react.default.createElement(_pageRenderer.default, props));
 
   class LocationHandler extends _react.default.Component {
     render() {
-      let {
+      const {
         location
       } = this.props;
       return _react.default.createElement(_ensureResources.default, {
@@ -67,8 +81,8 @@ window.___webpackCompilationHash = window.webpackCompilationHash;
         basepath: __BASE_PATH__,
         location: location,
         id: "gatsby-focus-wrapper"
-      }, _react.default.createElement(_pageRenderer.default, (0, _extends2.default)({
-        path: pageResources.page.path === `/404.html` ? location.pathname : pageResources.page.matchPath || pageResources.page.path
+      }, _react.default.createElement(RouteHandler, (0, _extends2.default)({
+        path: encodeURI(pageResources.page.path === `/404.html` ? (0, _stripPrefix.default)(location.pathname, __BASE_PATH__) : pageResources.page.matchPath || pageResources.page.path)
       }, this.props, {
         location: location,
         pageResources: pageResources
@@ -88,16 +102,18 @@ window.___webpackCompilationHash = window.webpackCompilationHash;
   // - it's a 404 page
   // - it's the offline plugin shell (/offline-plugin-app-shell-fallback/)
 
-  if (pagePath && __BASE_PATH__ + pagePath !== browserLoc.pathname && !(loader.pathFinder.findMatchPath((0, _stripPrefix.default)(browserLoc.pathname, __BASE_PATH__)) || pagePath === `/404.html` || pagePath.match(/^\/404\/?$/) || pagePath.match(/^\/offline-plugin-app-shell-fallback\/?$/))) {
+  if (pagePath && __BASE_PATH__ + pagePath !== browserLoc.pathname && !(loader.findMatchPath((0, _stripPrefix.default)(browserLoc.pathname, __BASE_PATH__)) || pagePath === `/404.html` || pagePath.match(/^\/404\/?$/) || pagePath.match(/^\/offline-plugin-app-shell-fallback\/?$/))) {
     (0, _router.navigate)(__BASE_PATH__ + pagePath + browserLoc.search + browserLoc.hash, {
       replace: true
     });
   }
 
-  loader.loadPage(browserLoc.pathname).then(page => {
+  _loader.publicLoader.loadPage(browserLoc.pathname).then(page => {
     if (!page || page.status === `error`) {
       throw new Error(`page resources for ${browserLoc.pathname} not found. Not rendering React`);
     }
+
+    window.___webpackCompilationHash = page.page.webpackCompilationHash;
 
     const Root = () => _react.default.createElement(_router.Location, null, locationContext => _react.default.createElement(LocationHandler, locationContext));
 

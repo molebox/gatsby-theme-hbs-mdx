@@ -1,6 +1,6 @@
 var plugins = [{
-      plugin: require('D:/HUNGRYBEARSTUDIO/GATSBY-THEMES/gatsby-theme-hbs-mdx/gatsby-theme-hbs-mdx/node_modules/gatsby-mdx/gatsby-ssr'),
-      options: {"plugins":[],"defaultLayouts":{"default":"D:\\HUNGRYBEARSTUDIO\\GATSBY-THEMES\\gatsby-theme-hbs-mdx\\gatsby-theme-hbs-mdx\\packages\\gatsby-theme-hbs-mdx-core\\src\\components\\posts-layout.js"}},
+      plugin: require('D:/HUNGRY BEAR STUDIO/GATSBY-THEMES/gatsby-theme-hbs-mdx/node_modules/gatsby-plugin-mdx/gatsby-ssr'),
+      options: {"plugins":[],"defaultLayouts":{"default":"D:\\HUNGRY BEAR STUDIO\\GATSBY-THEMES\\gatsby-theme-hbs-mdx\\packages\\gatsby-theme-hbs-mdx-core\\src\\components\\posts-layout.js"}},
     }]
 // During bootstrap, we write requires at top of this file which looks like:
 // var plugins = [

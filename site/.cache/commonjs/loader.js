@@ -5,13 +5,11 @@ var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefau
 exports.__esModule = true;
 exports.default = exports.publicLoader = exports.setLoader = exports.ProdLoader = exports.BaseLoader = void 0;
 
-require("core-js/modules/es7.promise.finally");
-
 var _prefetch = _interopRequireDefault(require("./prefetch"));
 
 var _emitter = _interopRequireDefault(require("./emitter"));
 
-var _findPath = _interopRequireDefault(require("./find-path"));
+var _findPath = require("./find-path");
 
 const preferDefault = m => m && m.default || m;
 
@@ -29,7 +27,6 @@ const createPageDataUrl = path => {
 const doFetch = (url, method = `GET`) => new Promise((resolve, reject) => {
   const req = new XMLHttpRequest();
   req.open(method, url, true);
-  req.withCredentials = true;
 
   req.onreadystatechange = () => {
     if (req.readyState == 4) {
@@ -50,19 +47,26 @@ const loadPageDataJson = loadObj => {
     const {
       status,
       responseText
-    } = req;
-    const contentType = req.getResponseHeader(`content-type`);
-    const isJson = contentType && contentType.startsWith(`application/json`); // Handle 200 JSON (Success)
+    } = req; // Handle 200
 
-    if (status === 200 && isJson) {
-      return Object.assign(loadObj, {
-        status: `success`,
-        payload: JSON.parse(responseText)
-      });
+    if (status === 200) {
+      try {
+        const jsonPayload = JSON.parse(responseText);
+
+        if (jsonPayload.path === undefined) {
+          throw new Error(`not a valid pageData response`);
+        }
+
+        return Object.assign(loadObj, {
+          status: `success`,
+          payload: jsonPayload
+        });
+      } catch (err) {// continue regardless of error
+      }
     } // Handle 404
 
 
-    if (status === 404 || status === 200 && !isJson) {
+    if (status === 404 || status === 200) {
       // If the request was for a 404 page and it doesn't exist, we're done
       if (pagePath === `/404.html`) {
         return Object.assign(loadObj, {
@@ -100,7 +104,7 @@ const loadPageDataJson = loadObj => {
 };
 
 const doesConnectionSupportPrefetch = () => {
-  if (`connection` in navigator) {
+  if (`connection` in navigator && typeof navigator.connection !== `undefined`) {
     if ((navigator.connection.effectiveType || ``).includes(`2g`)) {
       return false;
     }
@@ -148,7 +152,7 @@ class BaseLoader {
     this.prefetchTriggered = new Set();
     this.prefetchCompleted = new Set();
     this.loadComponent = loadComponent;
-    this.pathFinder = new _findPath.default(matchPaths);
+    (0, _findPath.setMatchPaths)(matchPaths);
   }
 
   setApiRunner(apiRunner) {
@@ -157,7 +161,7 @@ class BaseLoader {
   }
 
   loadPageDataJson(rawPath) {
-    const pagePath = this.pathFinder.find(rawPath);
+    const pagePath = (0, _findPath.findPath)(rawPath);
 
     if (this.pageDataDb.has(pagePath)) {
       return Promise.resolve(this.pageDataDb.get(pagePath));
@@ -169,11 +173,15 @@ class BaseLoader {
       this.pageDataDb.set(pagePath, pageData);
       return pageData;
     });
+  }
+
+  findMatchPath(rawPath) {
+    return (0, _findPath.findMatchPath)(rawPath);
   } // TODO check all uses of this and whether they use undefined for page resources not exist
 
 
   loadPage(rawPath) {
-    const pagePath = this.pathFinder.find(rawPath);
+    const pagePath = (0, _findPath.findPath)(rawPath);
 
     if (this.pageDb.has(pagePath)) {
       const page = this.pageDb.get(pagePath);
@@ -184,7 +192,9 @@ class BaseLoader {
       return this.inFlightDb.get(pagePath);
     }
 
-    const inFlight = this.loadPageDataJson(pagePath).then(result => {
+    const inFlight = Promise.all([this.loadAppData(), this.loadPageDataJson(pagePath)]).then(allData => {
+      const result = allData[1];
+
       if (result.status === `error`) {
         return {
           status: `error`
@@ -196,7 +206,7 @@ class BaseLoader {
         throw new Error(`404 page could not be found. Checkout https://www.gatsbyjs.org/docs/add-404-page/`);
       }
 
-      const pageData = result.payload;
+      let pageData = result.payload;
       const {
         componentChunkName
       } = pageData;
@@ -215,6 +225,9 @@ class BaseLoader {
             finalResult.notFound = true;
           }
 
+          pageData = Object.assign(pageData, {
+            webpackCompilationHash: allData[0] ? allData[0].webpackCompilationHash : ``
+          });
           pageResources = toPageResources(pageData, component);
           finalResult.payload = pageResources;
 
@@ -228,8 +241,13 @@ class BaseLoader {
 
         return pageResources;
       });
-    }).finally(() => {
+    }) // prefer duplication with then + catch over .finally to prevent problems in ie11 + firefox
+    .then(response => {
       this.inFlightDb.delete(pagePath);
+      return response;
+    }).catch(err => {
+      this.inFlightDb.delete(pagePath);
+      throw err;
     });
     this.inFlightDb.set(pagePath, inFlight);
     return inFlight;
@@ -237,7 +255,7 @@ class BaseLoader {
 
 
   loadPageSync(rawPath) {
-    const pagePath = this.pathFinder.find(rawPath);
+    const pagePath = (0, _findPath.findPath)(rawPath);
 
     if (this.pageDb.has(pagePath)) {
       return this.pageDb.get(pagePath).payload;
@@ -247,12 +265,7 @@ class BaseLoader {
   }
 
   shouldPrefetch(pagePath) {
-    // If a plugin has disabled core prefetching, stop now.
-    if (this.prefetchDisabled) {
-      return false;
-    } // Skip prefetching if we know user is on slow or constrained connection
-
-
+    // Skip prefetching if we know user is on slow or constrained connection
     if (!doesConnectionSupportPrefetch()) {
       return false;
     } // Check if the page exists.
@@ -277,17 +290,22 @@ class BaseLoader {
         pathname: pagePath
       });
       this.prefetchTriggered.add(pagePath);
+    } // If a plugin has disabled core prefetching, stop now.
+
+
+    if (this.prefetchDisabled) {
+      return false;
     }
 
-    this.doPrefetch(pagePath).then(pageData => {
-      const realPath = this.pathFinder.find(pagePath);
+    const realPath = (0, _findPath.findPath)(pagePath); // Todo make doPrefetch logic cacheable
+    // eslint-disable-next-line consistent-return
 
-      if (!this.prefetchCompleted.has(realPath)) {
+    this.doPrefetch(realPath).then(() => {
+      if (!this.prefetchCompleted.has(pagePath)) {
         this.apiRunner(`onPostPrefetchPathname`, {
           pathname: pagePath
         });
-        const realPath = this.pathFinder.find(pagePath);
-        this.prefetchCompleted.add(realPath);
+        this.prefetchCompleted.add(pagePath);
       }
     });
     return true;
@@ -302,7 +320,7 @@ class BaseLoader {
   }
 
   getResourceURLsForPathname(rawPath) {
-    const pagePath = this.pathFinder.find(rawPath);
+    const pagePath = (0, _findPath.findPath)(rawPath);
     const page = this.pageDataDb.get(pagePath);
 
     if (page) {
@@ -314,9 +332,40 @@ class BaseLoader {
   }
 
   isPageNotFound(rawPath) {
-    const pagePath = this.pathFinder.find(rawPath);
+    const pagePath = (0, _findPath.findPath)(rawPath);
     const page = this.pageDb.get(pagePath);
     return page && page.notFound === true;
+  }
+
+  loadAppData(retries = 0) {
+    return doFetch(`${__PATH_PREFIX__}/page-data/app-data.json`).then(req => {
+      const {
+        status,
+        responseText
+      } = req;
+      let appData;
+
+      if (status !== 200 && retries < 3) {
+        // Retry 3 times incase of failures
+        return this.loadAppData(retries + 1);
+      } // Handle 200
+
+
+      if (status === 200) {
+        try {
+          const jsonPayload = JSON.parse(responseText);
+
+          if (jsonPayload.webpackCompilationHash === undefined) {
+            throw new Error(`not a valid app-data response`);
+          }
+
+          appData = jsonPayload;
+        } catch (err) {// continue regardless of error
+        }
+      }
+
+      return appData;
+    });
   }
 
 }
@@ -334,7 +383,10 @@ class ProdLoader extends BaseLoader {
 
   doPrefetch(pagePath) {
     const pageDataUrl = createPageDataUrl(pagePath);
-    return (0, _prefetch.default)(pageDataUrl).then(() => // This was just prefetched, so will return a response from
+    return (0, _prefetch.default)(pageDataUrl, {
+      crossOrigin: `anonymous`,
+      as: `fetch`
+    }).then(() => // This was just prefetched, so will return a response from
     // the cache instead of making another request to the server
     this.loadPageDataJson(pagePath)).then(result => {
       if (result.status !== `success`) {
@@ -377,7 +429,8 @@ const publicLoader = {
   loadPageSync: rawPath => instance.loadPageSync(rawPath),
   prefetch: rawPath => instance.prefetch(rawPath),
   isPageNotFound: rawPath => instance.isPageNotFound(rawPath),
-  hovering: rawPath => instance.hovering(rawPath)
+  hovering: rawPath => instance.hovering(rawPath),
+  loadAppData: () => instance.loadAppData()
 };
 exports.publicLoader = publicLoader;
 var _default = publicLoader;
