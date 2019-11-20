@@ -8,7 +8,7 @@ In your sites gatsby-config:
 
 ```
 module.exports = {
-    __experimentalThemes: ['gatsby-theme-hbs-mdx']
+    plugins: ['gatsby-theme-hbs-mdx']
 }
 
 ```
@@ -49,7 +49,7 @@ Keep the parameters the same ```({data})```, all you have to do is change whats 
 ```
 import React from "react";
 import { graphql } from "gatsby";
-import MDXRenderer from "gatsby-mdx/mdx-renderer";
+import { MDXRenderer } from "gatsby-plugin-mdx"
 
 function PageTemplate({ data: { mdx } }) {
   return (
@@ -63,7 +63,7 @@ function PageTemplate({ data: { mdx } }) {
 export default PageTemplate
 ```
 
-Like in the blogIndex, you will have access to the posts metadata and body content. Make sure you import the ```MDXRenderer``` from ```gatsby-mdx/mdx-renderer``` and render the posts body content within, the same as the original file.
+Like in the blogIndex, you will have access to the posts metadata and body content. Make sure you import the ```MDXRenderer``` from ```gatsby-plugin-mdx``` and render the posts body content within, the same as the original file.
 
 ---
 
